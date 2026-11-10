@@ -149,6 +149,9 @@
       <label class="fld"><span class="lbl">Resident Name *</span>
         <input type="text" id="name" placeholder="Fill here — full name" required></label>
 
+      <label class="fld"><span class="lbl">Email ID *</span>
+        <input type="text" id="email" placeholder="Fill here — your email" required></label>
+
       <label class="fld"><span class="lbl">Your stand on the back gate Entry &amp; Exit both *</span></label>
       <div class="seg" id="seg">
         <button type="button" data-v="yes">👍 Support</button>
@@ -217,6 +220,7 @@ var API = 'https://script.google.com/macros/s/AKfycbxF6do8V60yeXl7FwelNQc1tUF9sM
 
 var $=function(s){return document.querySelector(s);};
 var stand=null, picks=new Set(), records=[];
+var DEVICE=(function(){try{var d=localStorage.getItem('bg_dev');if(!d){d='dev_'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);localStorage.setItem('bg_dev',d);}return d;}catch(e){return 'dev_'+Math.random().toString(36).slice(2);}})();
 
 /* ---- JSONP helper (works cross-origin, no login) ---- */
 function jsonp(params){
@@ -274,19 +278,19 @@ function render(){
 
 $('#f').addEventListener('submit',function(e){
   e.preventDefault();
-  var flat=$('#flat').value.trim(), name=$('#name').value.trim(), mob=$('#mob').value.trim();
-  if(!flat||!name||!mob){showMsg('Please fill flat, name and mobile.',false);return;}
+  var flat=$('#flat').value.trim(), name=$('#name').value.trim(), mob=$('#mob').value.trim(), email=$('#email').value.trim();
+  if(!flat||!name||!mob||!email){showMsg('Please fill flat, name, mobile and email.',false);return;}
   if(!/^[0-9+\-\s]{7,15}$/.test(mob)){showMsg('Please enter a valid mobile number.',false);return;}
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){showMsg('Please enter a valid email ID.',false);return;}
   if(!stand){showMsg('Please choose your stand (Support / With conditions / Against).',false);return;}
   $('#sb').disabled=true;
   showMsg('Saving…',true);
   jsonp({
-    action:'submit', flat:flat, name:name, mobile:mob, stand:stand,
-    reasons:Array.from(picks).join('|'), comment:$('#cmt').value.trim()
+    action:'submit', flat:flat, name:name, mobile:mob, email:email, stand:stand,
+    reasons:Array.from(picks).join('|'), comment:$('#cmt').value.trim(), device:DEVICE
   }).then(function(res){
     records=(res&&res.list)||[]; render();
-    showMsg('✓ Thank you! Your response is recorded. You can edit it anytime by resubmitting with the same flat and mobile.',true);
-    try{localStorage.setItem('bg_me',JSON.stringify({flat:flat,name:name,mobile:mob,stand:stand,reasons:Array.from(picks),comment:$('#cmt').value.trim()}));}catch(_){}
+    showMsg('✓ Thank you! Your response is recorded. To change it later, submit again with the same flat and mobile.',true);
     $('#sb').disabled=false;
     $('#formCard').scrollIntoView({behavior:'smooth',block:'start'});
   }).catch(function(){
@@ -298,7 +302,7 @@ $('#f').addEventListener('submit',function(e){
 function prefill(r){
   if(!r)return;
   $('#flat').value=r.flat||'';$('#name').value=r.name||'';$('#mob').value=r.mobile||'';
-  $('#cmt').value=r.comment||'';
+  $('#email').value=r.email||'';$('#cmt').value=r.comment||'';
   if(r.stand){var b=$('#seg').querySelector('[data-v="'+r.stand+'"]');if(b){stand=r.stand;b.classList.add('sel');}}
   (r.reasons||[]).forEach(function(rr){var c=$('#chips').querySelector('[data-r="'+rr+'"]');if(c){c.classList.add('on');picks.add(rr);}});
 }
@@ -307,7 +311,14 @@ function prefill(r){
 jsonp({action:'list'}).then(function(res){records=(res&&res.list)||[];render();}).catch(function(){
   $('#list').innerHTML='<div class="empty">Could not load responses. Check internet.</div>';
 });
-try{var saved=JSON.parse(localStorage.getItem('bg_me')||'null');if(saved)prefill(saved);}catch(_){}
+/* If this phone already has a saved response in the sheet, show it (one per phone).
+   If the admin later deletes that row, this returns nothing and the form stays blank. */
+jsonp({action:'mine', device:DEVICE}).then(function(res){
+  if(res && res.mine){
+    prefill(res.mine);
+    showMsg('Aapne is phone se pehle hi raai di hai. Badalna ho to upar update karke dubara Submit kijiye.',true);
+  }
+}).catch(function(){});
 </script>
 </body>
 </html>
