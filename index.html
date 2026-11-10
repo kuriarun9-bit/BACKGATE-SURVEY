@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<base target="_top">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Opinion on Back Gate Entry/Exit</title>
@@ -202,6 +201,10 @@
 </div>
 
 <script>
+/* ====== CONFIG: your Apps Script web app URL ====== */
+var API = 'https://script.google.com/macros/s/AKfycbxF6do8V60yeXl7FwelNQc1tUF9sMSYplFzz-5mowQyELLHo2bmNBXiRup1kEqekLzc/exec';
+
+/* ---- step wizard ---- */
 (function(){
   function go(n){
     document.querySelectorAll('.page').forEach(function(p){p.classList.toggle('show',p.id==='page'+n);});
@@ -213,6 +216,22 @@
 
 var $=function(s){return document.querySelector(s);};
 var stand=null, picks=new Set(), records=[];
+
+/* ---- JSONP helper (works cross-origin, no login) ---- */
+function jsonp(params){
+  return new Promise(function(resolve,reject){
+    var cb='cb_'+Date.now()+'_'+Math.floor(Math.random()*1e6);
+    var s=document.createElement('script');
+    var q=new URLSearchParams(params); q.set('callback',cb);
+    var done=false;
+    function cleanup(){try{delete window[cb];}catch(e){window[cb]=undefined;} if(s.parentNode)s.parentNode.removeChild(s);}
+    window[cb]=function(data){done=true;resolve(data);cleanup();};
+    s.onerror=function(){if(!done){done=true;reject(new Error('network'));cleanup();}};
+    s.src=API+'?'+q.toString();
+    document.body.appendChild(s);
+    setTimeout(function(){if(!done){done=true;reject(new Error('timeout'));cleanup();}},15000);
+  });
+}
 
 $('#seg').addEventListener('click',function(e){
   var b=e.target.closest('button'); if(!b)return;
@@ -260,20 +279,19 @@ $('#f').addEventListener('submit',function(e){
   if(!stand){showMsg('Please choose your stand (Support / With conditions / Against).',false);return;}
   $('#sb').disabled=true;
   showMsg('Saving…',true);
-  var payload={flat:flat,name:name,mobile:mob,stand:stand,reasons:Array.from(picks),comment:$('#cmt').value.trim()};
-  google.script.run
-    .withSuccessHandler(function(list){
-      records=list||[];render();
-      showMsg('✓ Thank you! Your response is recorded. You can edit it anytime by resubmitting with the same flat and mobile.',true);
-      try{localStorage.setItem('bg_me',JSON.stringify(payload));}catch(_){}
-      $('#sb').disabled=false;
-      $('#formCard').scrollIntoView({behavior:'smooth',block:'start'});
-    })
-    .withFailureHandler(function(err){
-      showMsg('Could not save: '+((err&&err.message)?err.message:'please try again.'),false);
-      $('#sb').disabled=false;
-    })
-    .submitResponse(payload);
+  jsonp({
+    action:'submit', flat:flat, name:name, mobile:mob, stand:stand,
+    reasons:Array.from(picks).join('|'), comment:$('#cmt').value.trim()
+  }).then(function(res){
+    records=(res&&res.list)||[]; render();
+    showMsg('✓ Thank you! Your response is recorded. You can edit it anytime by resubmitting with the same flat and mobile.',true);
+    try{localStorage.setItem('bg_me',JSON.stringify({flat:flat,name:name,mobile:mob,stand:stand,reasons:Array.from(picks),comment:$('#cmt').value.trim()}));}catch(_){}
+    $('#sb').disabled=false;
+    $('#formCard').scrollIntoView({behavior:'smooth',block:'start'});
+  }).catch(function(){
+    showMsg('Could not save — please check your internet and try again.',false);
+    $('#sb').disabled=false;
+  });
 });
 
 function prefill(r){
@@ -284,8 +302,10 @@ function prefill(r){
   (r.reasons||[]).forEach(function(rr){var c=$('#chips').querySelector('[data-r="'+rr+'"]');if(c){c.classList.add('on');picks.add(rr);}});
 }
 
-// Load existing responses + prefill the user's own last entry from this device.
-google.script.run.withSuccessHandler(function(list){records=list||[];render();}).getResponses();
+/* ---- initial load ---- */
+jsonp({action:'list'}).then(function(res){records=(res&&res.list)||[];render();}).catch(function(){
+  $('#list').innerHTML='<div class="empty">Could not load responses. Check internet.</div>';
+});
 try{var saved=JSON.parse(localStorage.getItem('bg_me')||'null');if(saved)prefill(saved);}catch(_){}
 </script>
 </body>
