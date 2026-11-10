@@ -143,14 +143,11 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <label class="fld"><span class="lbl">Flat No. *</span>
           <input type="text" id="flat" placeholder="Fill here — e.g. A-101" required></label>
-        <label class="fld"><span class="lbl">Mobile No. *</span>
-          <input type="tel" id="mob" placeholder="Fill here — 10-digit no." required></label>
+        <label class="fld"><span class="lbl">Mobile No. (optional)</span>
+          <input type="tel" id="mob" placeholder="Fill here — 10-digit (optional)"></label>
       </div>
       <label class="fld"><span class="lbl">Resident Name *</span>
         <input type="text" id="name" placeholder="Fill here — full name" required></label>
-
-      <label class="fld"><span class="lbl">Email ID *</span>
-        <input type="text" id="email" placeholder="Fill here — your email" required></label>
 
       <label class="fld"><span class="lbl">Your stand on the back gate Entry &amp; Exit both *</span></label>
       <div class="seg" id="seg">
@@ -174,7 +171,7 @@
         <textarea id="cmt" placeholder="Fill here (optional) — any condition, concern or idea for the committee..."></textarea></label>
 
       <button type="submit" class="submit" id="sb">Submit my response</button>
-      <div class="note">One response per resident. By submitting you add your name as a signatory to this request. Your mobile number is shared only with the RWA committee.</div>
+      <div class="note">One response per phone. By submitting you add your name as a signatory to this request. Details are shared only with the RWA committee.</div>
       <div class="msg" id="msg"></div>
     </form>
   </div>
@@ -278,19 +275,18 @@ function render(){
 
 $('#f').addEventListener('submit',function(e){
   e.preventDefault();
-  var flat=$('#flat').value.trim(), name=$('#name').value.trim(), mob=$('#mob').value.trim(), email=$('#email').value.trim();
-  if(!flat||!name||!mob||!email){showMsg('Please fill flat, name, mobile and email.',false);return;}
-  if(!/^[0-9+\-\s]{7,15}$/.test(mob)){showMsg('Please enter a valid mobile number.',false);return;}
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){showMsg('Please enter a valid email ID.',false);return;}
+  var flat=$('#flat').value.trim(), name=$('#name').value.trim(), mob=$('#mob').value.trim();
+  if(!flat||!name){showMsg('Please fill flat number and name.',false);return;}
+  if(mob && !/^[0-9+\-\s]{7,15}$/.test(mob)){showMsg('Please enter a valid mobile number (or leave it blank).',false);return;}
   if(!stand){showMsg('Please choose your stand (Support / With conditions / Against).',false);return;}
   $('#sb').disabled=true;
   showMsg('Saving…',true);
   jsonp({
-    action:'submit', flat:flat, name:name, mobile:mob, email:email, stand:stand,
+    action:'submit', flat:flat, name:name, mobile:mob, stand:stand,
     reasons:Array.from(picks).join('|'), comment:$('#cmt').value.trim(), device:DEVICE
   }).then(function(res){
     records=(res&&res.list)||[]; render();
-    showMsg('✓ Thank you! Your response is recorded. To change it later, submit again with the same flat and mobile.',true);
+    showMsg('✓ Thank you! Your response is recorded. To change it later, open this link on the same phone and submit again.',true);
     $('#sb').disabled=false;
     $('#formCard').scrollIntoView({behavior:'smooth',block:'start'});
   }).catch(function(){
@@ -302,7 +298,7 @@ $('#f').addEventListener('submit',function(e){
 function prefill(r){
   if(!r)return;
   $('#flat').value=r.flat||'';$('#name').value=r.name||'';$('#mob').value=r.mobile||'';
-  $('#email').value=r.email||'';$('#cmt').value=r.comment||'';
+  $('#cmt').value=r.comment||'';
   if(r.stand){var b=$('#seg').querySelector('[data-v="'+r.stand+'"]');if(b){stand=r.stand;b.classList.add('sel');}}
   (r.reasons||[]).forEach(function(rr){var c=$('#chips').querySelector('[data-r="'+rr+'"]');if(c){c.classList.add('on');picks.add(rr);}});
 }
