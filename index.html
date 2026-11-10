@@ -245,7 +245,7 @@ $('#chips').addEventListener('click',function(e){
 });
 
 function showMsg(t,ok){var m=$('#msg');m.textContent=t;m.className='msg '+(ok?'ok':'err');}
-function esc(s){return (s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 
 function render(){
   var n=records.length;
